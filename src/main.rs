@@ -114,7 +114,7 @@ fn part_4() -> impl Iterator<Item = Sample> + Clone {
 fn song() -> impl Iterator<Item = Sample> + Clone {
     pause()
         .chain(part_1())
-        .chain(pause())
+        .chain(verse())
         .chain(part_2())
         .chain(pause())
         .chain(part_3())
