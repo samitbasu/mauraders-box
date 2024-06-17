@@ -75,8 +75,8 @@ fn pause() -> impl Iterator<Item = Sample> + Clone {
     std::iter::once(Sample::Pause)
 }
 
-fn verse() -> impl Iterator<Item = Sample> + Clone {
-    pause().cycle().take(24)
+fn verse(count: usize) -> impl Iterator<Item = Sample> + Clone {
+    pause().cycle().take(count)
 }
 
 fn chant_a() -> impl Iterator<Item = Sample> + Clone {
@@ -84,7 +84,7 @@ fn chant_a() -> impl Iterator<Item = Sample> + Clone {
 }
 
 fn chant_b() -> impl Iterator<Item = Sample> + Clone {
-    phrase_one().cycle().take(5)
+    phrase_one().cycle().take(4)
 }
 
 fn chant_c() -> impl Iterator<Item = Sample> + Clone {
@@ -114,11 +114,10 @@ fn part_4() -> impl Iterator<Item = Sample> + Clone {
 fn song() -> impl Iterator<Item = Sample> + Clone {
     pause()
         .chain(part_1())
-        .chain(verse())
+        .chain(verse(24))
         .chain(part_2())
-        .chain(pause())
+        .chain(verse(14))
         .chain(part_3())
-        .chain(pause())
         .chain(part_4())
 }
 
@@ -227,11 +226,9 @@ fn main() {
     // Play the sound directly on the device
     let song = song();
     for s in song {
-        let mut is_paused = false;
         match s {
             Sample::Pause => {
                 eprintln!("Pause here...");
-                is_paused = true;
             }
             Sample::One => {
                 eprintln!("Sample 1");
@@ -250,10 +247,6 @@ fn main() {
                 sink.play();
             }
         }
-        if is_paused {
-            while rx_b.recv().unwrap() != BeatType::Manual {}
-        } else {
-            let _ = rx_b.recv().unwrap();
-        }
+        let _ = rx_b.recv().unwrap();
     }
 }
