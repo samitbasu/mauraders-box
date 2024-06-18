@@ -60,7 +60,7 @@ pub enum ChantCState {
 pub enum Sample {
     One,
     Two,
-    Pause,
+    Three,
 }
 
 fn phrase_one() -> impl Iterator<Item = Sample> + Clone {
@@ -71,12 +71,8 @@ fn phrase_two() -> impl Iterator<Item = Sample> + Clone {
     std::iter::once(Sample::Two)
 }
 
-fn pause() -> impl Iterator<Item = Sample> + Clone {
-    std::iter::once(Sample::Pause)
-}
-
-fn verse(count: usize) -> impl Iterator<Item = Sample> + Clone {
-    pause().cycle().take(count)
+fn phrase_three() -> impl Iterator<Item = Sample> + Clone {
+    std::iter::once(Sample::Three)
 }
 
 fn chant_a() -> impl Iterator<Item = Sample> + Clone {
@@ -91,34 +87,39 @@ fn chant_c() -> impl Iterator<Item = Sample> + Clone {
     phrase_one().cycle().take(3)
 }
 
+fn chant_d() -> impl Iterator<Item = Sample> + Clone {
+    phrase_one().cycle().take(3).chain(phrase_three())
+}
+
 fn part_1() -> impl Iterator<Item = Sample> + Clone {
     chant_a().chain(chant_b()).chain(chant_a()).chain(chant_a())
 }
 
 fn part_2() -> impl Iterator<Item = Sample> + Clone {
-    chant_a().chain(chant_a())
+    chant_d().chain(chant_a())
 }
 
 fn part_3() -> impl Iterator<Item = Sample> + Clone {
-    chant_a()
-        .chain(chant_a())
+    chant_d()
+        .chain(chant_d())
         .chain(chant_a())
         .chain(chant_a())
         .chain(chant_c())
 }
 
 fn part_4() -> impl Iterator<Item = Sample> + Clone {
-    chant_a().cycle().take(45)
+    chant_a()
+        .chain(chant_a())
+        .chain(chant_a())
+        .chain(chant_a())
+        .chain(chant_a())
+        .chain(chant_a())
+        .chain(chant_a())
+        .chain(chant_a())
 }
 
 fn song() -> impl Iterator<Item = Sample> + Clone {
-    pause()
-        .chain(part_1())
-        .chain(verse(24))
-        .chain(part_2())
-        .chain(verse(14))
-        .chain(part_3())
-        .chain(part_4())
+    part_1().chain(part_2()).chain(part_3()).chain(part_4())
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -135,20 +136,10 @@ fn main() {
     // Chant cycle
     // A, B, A, A
     // Verse
-    // A, A
+    // D A - 11131112
     // Verse
-    // A, A, A, A, C
-    // break
-    // A, A
-
-    let sequence_a = "4445";
-    let sequence_b = "4444";
-    let sequence_c = "44";
-    let song_part_1 = "abaa";
-    let song_part_2 = "aa";
-    let song_part_3 = "aaac";
-    let song_part_4 = "aaaaaaaaa";
-
+    // D, D, A, A, C - 1113111311121112111
+    // A A A A A A A A
     // 4 times through
     // Turn your magic on
     // ...
@@ -168,85 +159,76 @@ fn main() {
     let chant3 = include_bytes!("../samples/chant3.wav");
     let chant4 = include_bytes!("../samples/chantA.wav");
     let chant5 = include_bytes!("../samples/chantC.wav");
-
-    // Set up a channel for the key strokes
-    let (tx, rx) = channel();
-    let (tx_b, rx_b) = channel();
-    std::thread::spawn(move || {
-        let term = Term::stdout();
-        loop {
-            let _ = tx.send(term.read_char());
-        }
-    });
-
-    // Start a synchronization thread...
-    std::thread::spawn(move || {
-        let mut period = Duration::from_millis(2000);
-        let mut auto_beat = false;
-        let mut start_time = std::time::Instant::now();
-        let epoch_time = std::time::Instant::now();
-        let mut beat_times = vec![];
-        let mut last_beat = std::time::Instant::now();
-        loop {
-            // Every 25 msec, we check for a key press
-            std::thread::sleep(Duration::from_millis(25));
-            if rx.try_recv().is_ok() {
-                last_beat = std::time::Instant::now();
-                eprintln!("Manual Beat! {:?}", epoch_time.elapsed());
-                tx_b.send(BeatType::Manual).unwrap();
-                auto_beat = false;
-                beat_times.push(epoch_time.elapsed());
-                start_time = std::time::Instant::now();
-                // if there are at least 4 beat times, we
-                // calculate the average time between beats and
-                // call this the period.
-                if beat_times.len() >= 4 {
-                    let beat_diffs = beat_times
-                        .windows(2)
-                        .map(|w| w[1] - w[0])
-                        .collect::<Vec<_>>();
-                    let avg_diff = beat_diffs.iter().sum::<Duration>() / beat_diffs.len() as u32;
-                    period = avg_diff;
-                    eprintln!("Period: {:?}", period);
-                    auto_beat = true;
-                    beat_times.clear();
-                }
-            }
-            if auto_beat && last_beat.elapsed() >= period {
-                // It's been at least half a period since the last beat
-                eprintln!("Auto Beat! {:?}", epoch_time.elapsed());
-                tx_b.send(BeatType::Auto).unwrap();
-                last_beat = std::time::Instant::now();
-            }
-        }
-    });
+    let chant6 = include_bytes!("../samples/alive-again-chant-vocals.mp3");
+    let lifetime = include_bytes!("../samples/lifetime.wav");
 
     // Load a sound from a file, using a path relative to Cargo.toml
     // Decode that sound file into a source
     // Play the sound directly on the device
     let song = song();
-    for s in song {
-        match s {
-            Sample::Pause => {
-                eprintln!("Pause here...");
-            }
-            Sample::One => {
-                eprintln!("Sample 1");
-                sink.stop();
-                sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
-                sink.play();
-            }
-            Sample::Two => {
-                eprintln!("Sample 2");
-                sink.stop();
-                sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
-                sink.play();
-                std::thread::sleep(Duration::from_millis(1000));
-                sink.stop();
-                sink.append(Decoder::new(Cursor::new(&chant5[..])).unwrap());
-                sink.play();
+    let mut song_started = false;
+    let mut pause_counter = 0;
+    let term = Term::stdout();
+    // Get a key to start the song
+    let _ = term.read_char();
+    /*
+    if !song_started {
+        eprintln!("Let's go!");
+        let sink = Sink::try_new(&stream_handle).unwrap();
+        sink.append(Decoder::new(Cursor::new(&lifetime[..])).unwrap());
+        sink.detach();
+        song_started = true;
+    }
+    */
+    let mut seq1 = part_1().fuse();
+    let mut seq2 = part_2().fuse();
+    let mut seq3 = part_3().fuse();
+    let mut seq4 = part_4().fuse();
+    loop {
+        let char = term.read_char().unwrap();
+        let sample = match char {
+            '1' => seq1.next(),
+            '2' => seq2.next(),
+            '3' => seq3.next(),
+            '4' => seq4.next(),
+            _ => break,
+        };
+        if let Some(sample) = sample {
+            match sample {
+                Sample::One => {
+                    eprintln!("Sample 1");
+                    sink.stop();
+                    sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
+                    sink.play();
+                }
+                Sample::Two => {
+                    eprintln!("Sample 2");
+                    sink.stop();
+                    sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
+                    sink.play();
+                    std::thread::sleep(Duration::from_millis(1000));
+                    sink.stop();
+                    sink.append(Decoder::new(Cursor::new(&chant5[..])).unwrap());
+                    sink.play();
+                }
+                Sample::Three => {
+                    eprintln!("Sample 3");
+                    sink.stop();
+                    sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
+                    sink.play();
+                    std::thread::sleep(Duration::from_millis(500));
+                    {
+                        let sink = Sink::try_new(&stream_handle).unwrap();
+                        sink.append(Decoder::new(Cursor::new(&chant6[..])).unwrap());
+                        sink.play();
+                        sink.detach();
+                    }
+                    std::thread::sleep(Duration::from_millis(500));
+                    sink.stop();
+                    sink.append(Decoder::new(Cursor::new(&chant5[..])).unwrap());
+                    sink.play();
+                }
             }
         }
-        let _ = rx_b.recv().unwrap();
     }
 }
