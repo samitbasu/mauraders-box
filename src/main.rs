@@ -160,7 +160,7 @@ fn main() {
     let chant4 = include_bytes!("../samples/chantA.wav");
     let chant5 = include_bytes!("../samples/chantC.wav");
     let chant6 = include_bytes!("../samples/alive-again-chant-vocals.mp3");
-    let lifetime = include_bytes!("../samples/lifetime.wav");
+    //let lifetime = include_bytes!("../samples/lifetime.wav");
 
     // Load a sound from a file, using a path relative to Cargo.toml
     // Decode that sound file into a source
@@ -170,7 +170,6 @@ fn main() {
     let mut pause_counter = 0;
     let term = Term::stdout();
     // Get a key to start the song
-    let _ = term.read_char();
     /*
     if !song_started {
         eprintln!("Let's go!");
@@ -187,10 +186,9 @@ fn main() {
     loop {
         let char = term.read_char().unwrap();
         let sample = match char {
-            '1' => seq1.next(),
-            '2' => seq2.next(),
-            '3' => seq3.next(),
-            '4' => seq4.next(),
+            '1' => Some(Sample::One),
+            '2' => Some(Sample::Two),
+            '3' => Some(Sample::Three),
             _ => break,
         };
         if let Some(sample) = sample {
@@ -204,28 +202,13 @@ fn main() {
                 Sample::Two => {
                     eprintln!("Sample 2");
                     sink.stop();
-                    sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
-                    sink.play();
-                    std::thread::sleep(Duration::from_millis(1000));
-                    sink.stop();
                     sink.append(Decoder::new(Cursor::new(&chant5[..])).unwrap());
                     sink.play();
                 }
                 Sample::Three => {
                     eprintln!("Sample 3");
                     sink.stop();
-                    sink.append(Decoder::new(Cursor::new(&chant4[..])).unwrap());
-                    sink.play();
-                    std::thread::sleep(Duration::from_millis(500));
-                    {
-                        let sink = Sink::try_new(&stream_handle).unwrap();
-                        sink.append(Decoder::new(Cursor::new(&chant6[..])).unwrap());
-                        sink.play();
-                        sink.detach();
-                    }
-                    std::thread::sleep(Duration::from_millis(500));
-                    sink.stop();
-                    sink.append(Decoder::new(Cursor::new(&chant5[..])).unwrap());
+                    sink.append(Decoder::new(Cursor::new(&chant6[..])).unwrap());
                     sink.play();
                 }
             }
